@@ -1,0 +1,89 @@
+{
+  "name": "Google Review Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 */2 * * *" }]
+        }
+      },
+      "name": "Every 2 Hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://mybusiness.googleapis.com/v4/accounts/YOUR_ACCOUNT/locations/YOUR_LOCATION/reviews",
+        "method": "GET",
+        "authentication": "oAuth2Api"
+      },
+      "name": "Fetch Reviews",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [{ "value1": "={{ $json.isNew }}", "operation": "equals", "value2": "true" }]
+        }
+      },
+      "name": "New Reviews Only",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [{ "value1": "={{ $json.starRating }}", "operation": "smallerEqual", "value2": 3 }]
+        }
+      },
+      "name": "Negative?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "channel": "#reviews",
+        "text": "⭐ New {{ $json.starRating }}-star review from {{ $json.reviewer.displayName }}:\n\"{{ $json.comment }}\""
+      },
+      "name": "Notify Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1100, 200]
+    },
+    {
+      "parameters": {
+        "channel": "#reviews",
+        "text": "🚨 NEGATIVE REVIEW ({{ $json.starRating }} stars) from {{ $json.reviewer.displayName }}:\n\"{{ $json.comment }}\"\n\nPlease respond ASAP!"
+      },
+      "name": "Alert Negative",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1100, 400]
+    }
+  ],
+  "connections": {
+    "Every 2 Hours": {
+      "main": [[{ "node": "Fetch Reviews", "type": "main", "index": 0 }]]
+    },
+    "Fetch Reviews": {
+      "main": [[{ "node": "New Reviews Only", "type": "main", "index": 0 }]]
+    },
+    "New Reviews Only": {
+      "main": [
+        [{ "node": "Negative?", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Negative?": {
+      "main": [
+        [{ "node": "Alert Negative", "type": "main", "index": 0 }],
+        [{ "node": "Notify Slack", "type": "main", "index": 0 }]
+      ]
+    }
+  }
+}
