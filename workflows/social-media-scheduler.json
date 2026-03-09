@@ -1,0 +1,82 @@
+{
+  "name": "Social Media Scheduler",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 10 * * 1-5" }]
+        }
+      },
+      "name": "Weekdays 10am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "sheetId": "YOUR_SHEET_ID",
+        "range": "Posts!A:E",
+        "options": {}
+      },
+      "name": "Get Posts from Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [{ "value1": "={{ $json.status }}", "operation": "equals", "value2": "scheduled" }]
+        }
+      },
+      "name": "Filter Scheduled",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://graph.facebook.com/v18.0/YOUR_PAGE_ID/feed",
+        "method": "POST",
+        "body": {
+          "message": "={{ $json.content }}",
+          "access_token": "YOUR_ACCESS_TOKEN"
+        }
+      },
+      "name": "Post to Facebook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://api.twitter.com/2/tweets",
+        "method": "POST",
+        "authentication": "oAuth2Api",
+        "body": { "text": "={{ $json.content }}" }
+      },
+      "name": "Post to Twitter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [900, 400]
+    }
+  ],
+  "connections": {
+    "Weekdays 10am": {
+      "main": [[{ "node": "Get Posts from Sheet", "type": "main", "index": 0 }]]
+    },
+    "Get Posts from Sheet": {
+      "main": [[{ "node": "Filter Scheduled", "type": "main", "index": 0 }]]
+    },
+    "Filter Scheduled": {
+      "main": [
+        [
+          { "node": "Post to Facebook", "type": "main", "index": 0 },
+          { "node": "Post to Twitter", "type": "main", "index": 0 }
+        ],
+        []
+      ]
+    }
+  }
+}
