@@ -1,0 +1,76 @@
+{
+  "name": "Lead Capture to CRM",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-capture",
+        "responseMode": "responseNode"
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "resource": "contact",
+        "additionalFields": {
+          "email": "={{ $json.email }}",
+          "firstName": "={{ $json.firstName }}",
+          "lastName": "={{ $json.lastName }}",
+          "phone": "={{ $json.phone }}"
+        }
+      },
+      "name": "Add to CRM",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 1,
+      "position": [500, 200]
+    },
+    {
+      "parameters": {
+        "fromEmail": "hello@yourbusiness.com",
+        "toEmail": "={{ $json.email }}",
+        "subject": "Thanks for getting in touch!",
+        "text": "Hi {{ $json.firstName }},\n\nThanks for reaching out. We'll get back to you within 24 hours.\n\nBest wishes,\nThe Team"
+      },
+      "name": "Send Welcome Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [500, 400]
+    },
+    {
+      "parameters": {
+        "channel": "#leads",
+        "text": "New lead: {{ $json.firstName }} {{ $json.lastName }} ({{ $json.email }})"
+      },
+      "name": "Notify Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\": \"ok\"}"
+      },
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [750, 500]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[
+        { "node": "Add to CRM", "type": "main", "index": 0 },
+        { "node": "Send Welcome Email", "type": "main", "index": 0 },
+        { "node": "Response", "type": "main", "index": 0 }
+      ]]
+    },
+    "Send Welcome Email": {
+      "main": [[{ "node": "Notify Slack", "type": "main", "index": 0 }]]
+    }
+  }
+}
