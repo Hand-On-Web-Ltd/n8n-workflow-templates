@@ -1,0 +1,74 @@
+{
+  "name": "Invoice Reminder",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 9 * * *" }]
+        }
+      },
+      "name": "Daily 9am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://your-invoicing-api.com/invoices?status=overdue",
+        "method": "GET",
+        "authentication": "headerAuth"
+      },
+      "name": "Get Overdue Invoices",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [{ "value1": "={{ $json.daysPastDue }}", "operation": "larger", "value2": 14 }]
+        }
+      },
+      "name": "Over 14 Days?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "accounts@yourbusiness.com",
+        "toEmail": "={{ $json.customerEmail }}",
+        "subject": "Friendly reminder: Invoice #{{ $json.invoiceNumber }}",
+        "text": "Hi {{ $json.customerName }},\n\nJust a quick reminder that invoice #{{ $json.invoiceNumber }} for £{{ $json.amount }} is overdue.\n\nPlease let us know if you have any questions.\n\nThanks,\nAccounts Team"
+      },
+      "name": "Send Reminder",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "channel": "#accounts",
+        "text": "⚠️ Invoice #{{ $json.invoiceNumber }} is {{ $json.daysPastDue }} days overdue (£{{ $json.amount }}) — {{ $json.customerName }}"
+      },
+      "name": "Escalate to Team",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [900, 400]
+    }
+  ],
+  "connections": {
+    "Daily 9am": {
+      "main": [[{ "node": "Get Overdue Invoices", "type": "main", "index": 0 }]]
+    },
+    "Get Overdue Invoices": {
+      "main": [[{ "node": "Over 14 Days?", "type": "main", "index": 0 }]]
+    },
+    "Over 14 Days?": {
+      "main": [
+        [{ "node": "Escalate to Team", "type": "main", "index": 0 }],
+        [{ "node": "Send Reminder", "type": "main", "index": 0 }]
+      ]
+    }
+  }
+}
